@@ -40,7 +40,7 @@ typedef enum
 struct DrnNode
 {
     DrnNodeKind kind;
-    Slice code; // without TASK: CONDITION:
+    Slice code;
 
     struct DrnNode *next;
     struct DrnNode *inner;
