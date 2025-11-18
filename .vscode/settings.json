@@ -35,7 +35,8 @@
         "ios": "c",
         "ostream": "c",
         "streambuf": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "arena.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

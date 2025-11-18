@@ -1,0 +1,8 @@
+#!/bin/false
+# comments are skipped
+
+# CONTROL: Clear Stack
+TASK: Fill Dishwasher with dirty items from sink.
+CONDITION: Dishwasher is 75% full or greater.
+  TASK: Fill dishwasher with soap and start load.
+    TASK: Tell Admin that you started the dishwasher.
