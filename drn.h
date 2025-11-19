@@ -247,6 +247,12 @@ DrnLoadRes LoadDrnScriptFromFile(const char *path)
     while (tkn.kind != LEX_END_OF_FILE && tkn.kind != LEX_ERROR)
     {
         printf("%d:%.*s\n", tkn.indent, tkn.code.len, tkn.code.base);
+
+        if (tkn.kind == DNK_TASK)
+        {
+            
+        }
+
         tkn = DrnLex_Next(&lxr);
     }
 
