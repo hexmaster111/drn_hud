@@ -50,7 +50,7 @@ typedef struct DrnNode DrnNode;
 typedef struct
 {
     Arena arena;
-    DrnNode start;
+    DrnNode *start;
 } DrnScript;
 
 typedef struct DrnLoadRes
@@ -219,6 +219,30 @@ SKIP:
     return (struct DrnToken){.kind = LEX_ERROR, .error_pos = {.line = s->line}};
 }
 
+void DrnPrint(FILE *f, DrnScript s)
+{
+
+    DrnNode *n = s.start;
+
+    while (n)
+    {
+        fprintf(f, "%.*s\n", n->code.len, n->code.base);
+        n = n->next;
+    }
+}
+
+#define TODO(MSG)                                                   \
+    do                                                              \
+    {                                                               \
+        printf("%s:%d TODO: %s\n", __FILE_NAME__, __LINE__, (MSG)); \
+        abort();                                                    \
+    } while (0);
+
+void ParseTask()
+{
+    
+}
+
 DrnLoadRes LoadDrnScriptFromFile(const char *path)
 {
     if (!FileExists(path))
@@ -243,14 +267,30 @@ DrnLoadRes LoadDrnScriptFromFile(const char *path)
     };
 
     struct DrnToken tkn = DrnLex_Next(&lxr);
+    DrnNode *n = ArenaMalloc(&scr.arena, sizeof(DrnNode));
+    scr.start = n;
 
     while (tkn.kind != LEX_END_OF_FILE && tkn.kind != LEX_ERROR)
     {
         printf("%d:%.*s\n", tkn.indent, tkn.code.len, tkn.code.base);
 
+        // this may be better as some kinda recursive thing
+        // 
         if (tkn.kind == DNK_TASK)
         {
-            
+            n->code = tkn.code;
+            n->kind = tkn.kind;
+            n->next = ArenaMalloc(&scr.arena, sizeof(DrnNode));
+            n = n->next;
+        }
+        else if (tkn.kind == DNK_CONDITION)
+        {
+            n->kind = tkn.kind;
+            n->code = tkn.code;
+        }
+        else
+        {
+            TODO("Unhandled Token");
         }
 
         tkn = DrnLex_Next(&lxr);
@@ -265,6 +305,8 @@ DrnLoadRes LoadDrnScriptFromFile(const char *path)
             .script = {0},
         };
     }
+
+    DrnPrint(stdout, scr);
 
     return (DrnLoadRes){
         .error = 0,

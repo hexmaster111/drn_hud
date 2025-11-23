@@ -10,7 +10,7 @@
 int main(int argc, char *argv[])
 {
 
-    DrnLoadRes lr = LoadDrnScriptFromFile("sample_drn/helloworld.drn");
+    DrnLoadRes lr = LoadDrnScriptFromFile("sample_drn/condition.drn");
     
     if (!lr.isOk)
     {
