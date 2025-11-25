@@ -269,16 +269,20 @@ DrnNode *ParseTask(struct DrnLexer *lxr, Arena *arena)
 DrnNode *ParseCondition(struct DrnLexer *lxr, Arena *arena)
 {
     struct DrnToken tk = DrnLex_Next(lxr);
+    struct DrnToken pk = DrnLex_Peek(lxr);
+
+    int cond_depth = tk.indent;
+    int body_depth = tk.indent + 1;
+
+    if (pk.indent != body_depth)
+        return 0;
+
     assert(tk.kind == DNK_CONDITION && "ParseCondition() on a non cond node?");
     DrnNode *n = ArenaMalloc(arena, sizeof(DrnNode));
     n->kind = DNK_CONDITION;
     n->code = tk.code;
 
-    int cond_depth = tk.indent;
-    int body_depth = tk.indent + 1;
-
-    struct DrnToken pk
-
+    n->inner = Parse(lxr, arena);
     return n;
 }
 
@@ -290,8 +294,13 @@ DrnNode *Parse(struct DrnLexer *lxr, Arena *arena)
     {
     case DNK_CONDITION:
         return ParseCondition(lxr, arena);
+
     case DNK_TASK:
         return ParseTask(lxr, arena);
+
+    case LEX_END_OF_FILE:
+        return 0;
+
     default:
         TODO("UNKNOWN TOKEN KIND");
         return 0;
