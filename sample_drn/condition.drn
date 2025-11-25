@@ -1,9 +1,7 @@
-
-
-
-
-
 TASK: Fill Dishwasher with dirty items from sink.
 CONDITION: Dishwasher is 75% full or greater.
-  TASK: Fill dishwasher with soap and start load.
+  TASK: Fill dishwasher with soap.
+  TASK: Run sink on hot until water is as hot as it gets.
+  TASK: Start dishwasher.
   TASK: Tell Admin that you started the dishwasher.
+TASK: Tell Admin Task Complete.

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "arena.h"
 
@@ -35,6 +36,7 @@ typedef enum
 
     LEX_END_OF_FILE,
     LEX_ERROR,
+    LEX_OK,
 } DrnNodeKind;
 
 struct DrnNode
@@ -217,6 +219,18 @@ SKIP:
     }
 
     return (struct DrnToken){.kind = LEX_ERROR, .error_pos = {.line = s->line}};
+
+#undef TASK_STR
+#undef COND_STR
+}
+
+struct DrnToken DrnLex_Peek(struct DrnLexer *s)
+{
+    // ineficnet af, we re-do our work ever peek, but, this is fast to impl
+    struct DrnLexer bck = *s;
+    struct DrnToken peek = DrnLex_Next(s);
+    *s = bck;
+    return peek;
 }
 
 void DrnPrint(FILE *f, DrnScript s)
@@ -238,9 +252,60 @@ void DrnPrint(FILE *f, DrnScript s)
         abort();                                                    \
     } while (0);
 
-void ParseTask()
+// prototype
+DrnNode *Parse(struct DrnLexer *lxr, Arena *arena);
+
+DrnNode *ParseTask(struct DrnLexer *lxr, Arena *arena)
 {
-    
+    struct DrnToken tk = DrnLex_Next(lxr);
+    assert(tk.kind == DNK_TASK && "ParseTask() on a non task node?");
+    DrnNode *n = ArenaMalloc(arena, sizeof(DrnNode));
+    n->code = tk.code;
+    n->kind = DNK_TASK;
+    n->next = Parse(lxr, arena);
+    return n;
+}
+
+DrnNode *ParseCondition(struct DrnLexer *lxr, Arena *arena)
+{
+    struct DrnToken tk = DrnLex_Next(lxr);
+    assert(tk.kind == DNK_CONDITION && "ParseCondition() on a non cond node?");
+    DrnNode *n = ArenaMalloc(arena, sizeof(DrnNode));
+    n->kind = DNK_CONDITION;
+    n->code = tk.code;
+
+    int cond_depth = tk.indent;
+    int body_depth = tk.indent + 1;
+
+    struct DrnToken pk
+
+    return n;
+}
+
+DrnNode *Parse(struct DrnLexer *lxr, Arena *arena)
+{
+    struct DrnToken peek = DrnLex_Peek(lxr);
+
+    switch (peek.kind)
+    {
+    case DNK_CONDITION:
+        return ParseCondition(lxr, arena);
+    case DNK_TASK:
+        return ParseTask(lxr, arena);
+    default:
+        TODO("UNKNOWN TOKEN KIND");
+        return 0;
+    }
+}
+
+int ParseFile(struct DrnLexer *lxr, DrnScript *scr)
+{
+    scr->start = Parse(lxr, &scr->arena);
+
+    if (scr->start == 0)
+        return LEX_ERROR;
+
+    return LEX_OK;
 }
 
 DrnLoadRes LoadDrnScriptFromFile(const char *path)
@@ -266,41 +331,13 @@ DrnLoadRes LoadDrnScriptFromFile(const char *path)
         .line = 0,
     };
 
-    struct DrnToken tkn = DrnLex_Next(&lxr);
-    DrnNode *n = ArenaMalloc(&scr.arena, sizeof(DrnNode));
-    scr.start = n;
+    int res = ParseFile(&lxr, &scr);
 
-    while (tkn.kind != LEX_END_OF_FILE && tkn.kind != LEX_ERROR)
-    {
-        printf("%d:%.*s\n", tkn.indent, tkn.code.len, tkn.code.base);
-
-        // this may be better as some kinda recursive thing
-        // 
-        if (tkn.kind == DNK_TASK)
-        {
-            n->code = tkn.code;
-            n->kind = tkn.kind;
-            n->next = ArenaMalloc(&scr.arena, sizeof(DrnNode));
-            n = n->next;
-        }
-        else if (tkn.kind == DNK_CONDITION)
-        {
-            n->kind = tkn.kind;
-            n->code = tkn.code;
-        }
-        else
-        {
-            TODO("Unhandled Token");
-        }
-
-        tkn = DrnLex_Next(&lxr);
-    }
-
-    if (tkn.kind == LEX_ERROR)
+    if (res == LEX_ERROR)
     {
         ArenaFree(&scr.arena);
         return (DrnLoadRes){
-            .error = StringCopy(TextFormat("Syntax Error: %s:%d\n", path, tkn.error_pos.line)),
+            .error = StringCopy(TextFormat("Syntax Error: %s:%d\n", path, lxr.line)),
             .isOk = 0,
             .script = {0},
         };

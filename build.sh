@@ -1,3 +1,3 @@
 #!/bin/bash
 
-cc drn_hud.c -ggdb -lraylib -lm -odrn
+cc hud_main.c -ggdb -lraylib -lm -odrn
