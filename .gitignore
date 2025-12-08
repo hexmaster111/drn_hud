@@ -1,2 +1,5 @@
 drn_hub
 drn
+obj/
+bin/
+*.sln
