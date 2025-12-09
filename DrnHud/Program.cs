@@ -4,42 +4,16 @@ using System.Diagnostics;
 
 DrnFile f = DrnFile.Parse(
     """
-    A
-        A1
-        A2
-        A3
-    B
-    C
-        C1
-        C2
-        C3
-            C3.1
-            C3.2
-            C3.3
-    D
+    # Comment blah blah blah
+    TASK: T0
+    CONDITION: C0
+        TASK: T1
+    TASK: T2
     """
 );
 
-PrintTree(f.StartOfFile);
-
-
 return 0;
 
-void PrintTree(Node n, int depth = 0)
-{
-    if (n == null) return;
-
-    string indentStr = "";
-    for (int i = 0; i < depth; i++) indentStr += ".";
-    Console.WriteLine(indentStr + n.Code);
-
-    if (n.Inner != null)
-    {
-        PrintTree(n.Inner, depth + 1);
-    }
-
-    PrintTree(n.Next, depth);
-}
 
 
 
@@ -91,7 +65,6 @@ public class Inserter
         {
             var parent = Node.Parent;
 
-
             while (parent.Token.Indent != newNode.Indent)
             {
                 parent = parent.Parent;
@@ -99,6 +72,8 @@ public class Inserter
 
             parent.Next = newNode;
             newNode.Parent = parent;
+
+            Node.Next = newNode;
 
             Indent = newNode.Indent;
         }
