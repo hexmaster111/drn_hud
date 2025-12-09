@@ -3,3 +3,5 @@ drn
 obj/
 bin/
 *.sln
+*.o
+drn_hub_linux

@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "preLaunchTask": "build",
             "request": "launch",
-            "program": "${workspaceFolder}/drn",
+            "program": "${workspaceFolder}/drn_hub_linux",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
