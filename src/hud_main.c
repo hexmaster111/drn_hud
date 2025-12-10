@@ -102,7 +102,7 @@ char *SliceToClitTmp(Slice s)
 
 int main(int argc, char *argv[])
 {
-    DrnRuntime rt = {.script = LoadDrnScriptFromFile("sample_drn/complex.drn")};
+    DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/complex.drn")};
 
     rt.now = rt.script.start;
     if (!rt.script.start)
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     }
     CloseWindow();
 
-    FreeDrnScript(&rt.script);
+    Drn_FreeScript(&rt.script);
 
     return 0;
 }

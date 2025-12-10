@@ -32,6 +32,7 @@ struct DrnNode
     } type;
 };
 typedef struct DrnNode DrnNode;
+DrnNode *DrnNode_New(DrnToken tok, Arena *arena);
 
 typedef struct
 {
@@ -39,13 +40,32 @@ typedef struct
     DrnNode *start, *eof;
 } DrnScript;
 
-DrnScript LoadDrnScriptFromFile(const char *path);
-void FreeDrnScript(DrnScript *scr)
+DrnScript Drn_LoadScriptFromFile(const char *path);
+void Drn_FreeScript(DrnScript *scr);
+
+typedef struct DrnLexer
 {
-    ArenaFree(&scr->arena);
-    scr->eof = 0;
-    scr->start = 0;
-}
+    char *end;
+    char *now;
+
+    char *filename;
+    size_t line;
+} DrnLexer;
+
+Slice DrnLex_ReadToNewline(DrnLexer *s);
+void DrnLex_GetAndStripIdent(Slice *s, int *out_indent);
+int DrnLex_HasMore(DrnLexer *lxr);
+DrnToken DrnLex_Next(DrnLexer *s);
+DrnToken DrnLex_Peek(struct DrnLexer *s);
+
+typedef struct DrnInserter
+{
+    DrnNode *node;
+    DrnNode *eof_node;
+    int indent;
+} DrnInserter;
+
+void DrnInserter_Insert(DrnInserter *this, DrnNode *new_node);
 
 #endif // DRN_H
 
@@ -60,23 +80,12 @@ void FreeDrnScript(DrnScript *scr)
         abort();                                                    \
     } while (0);
 
-char *StringCopy(const char *from)
+void Drn_FreeScript(DrnScript *scr)
 {
-    size_t sz = strlen(from) + 1;
-    char *ret = malloc(sz);
-    memset(ret, 0, sz);
-    strcpy(ret, from);
-    return ret;
+    ArenaFree(&scr->arena);
+    scr->eof = 0;
+    scr->start = 0;
 }
-
-typedef struct DrnLexer
-{
-    char *end;
-    char *now;
-
-    char *filename;
-    size_t line;
-} DrnLexer;
 
 Slice DrnLex_ReadToNewline(DrnLexer *s)
 {
@@ -137,7 +146,7 @@ SKIP:
     return (DrnToken){.code = line, .indent = indent};
 }
 
-struct DrnToken DrnLex_Peek(struct DrnLexer *s)
+DrnToken DrnLex_Peek(struct DrnLexer *s)
 {
     // ineficnet af, we re-do our work ever peek, but, this is fast to impl
     DrnLexer bck = *s;
@@ -165,13 +174,6 @@ DrnNode *DrnNode_New(DrnToken tok, Arena *arena)
 
     return n;
 }
-
-typedef struct DrnInserter
-{
-    DrnNode *node;
-    DrnNode *eof_node;
-    int indent;
-} DrnInserter;
 
 void DrnInserter_Insert(DrnInserter *this, DrnNode *new_node)
 {
