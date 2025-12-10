@@ -22,16 +22,30 @@ struct DrnNode
 {
     struct DrnToken token;
     struct DrnNode *next, *inner, *parent;
+
+    enum DrnNodeKind
+    {
+        DNK_UNKNOWN = 0,
+        DNK_TASK,
+        DNK_CONDITION,
+        DNK_END_OF_FILE
+    } type;
 };
 typedef struct DrnNode DrnNode;
 
 typedef struct
 {
     Arena arena;
-    DrnNode *start;
+    DrnNode *start, *eof;
 } DrnScript;
 
 DrnScript LoadDrnScriptFromFile(const char *path);
+void FreeDrnScript(DrnScript *scr)
+{
+    ArenaFree(&scr->arena);
+    scr->eof = 0;
+    scr->start = 0;
+}
 
 #endif // DRN_H
 
@@ -109,8 +123,12 @@ SKIP:
     Slice line = DrnLex_ReadToNewline(s);
     DrnLex_GetAndStripIdent(&line, &indent);
 
-    if (line.base[0] == '#' || line.base[0] == '\n')
+    if (line.base[0] == '#' || line.base[0] == '\n' || line.len == 0)
     {
+
+        if (!DrnLex_HasMore(s))
+            return (DrnToken){0};
+
         // empty line, comment, newline
         // comment line, skip DRONES NEVER PARSE THE COMMENTS!
         goto SKIP;
@@ -136,12 +154,22 @@ DrnNode *DrnNode_New(DrnToken tok, Arena *arena)
     n->inner = 0;
     n->next = 0;
 
+    if (strncmp("TASK", tok.code.base, 4) == 0)
+    {
+        n->type = DNK_TASK;
+    }
+    else if (strncmp("CONDITION", tok.code.base, 9) == 0)
+    {
+        n->type = DNK_CONDITION;
+    }
+
     return n;
 }
 
 typedef struct DrnInserter
 {
     DrnNode *node;
+    DrnNode *eof_node;
     int indent;
 } DrnInserter;
 
@@ -197,14 +225,27 @@ DrnScript LoadDrnScriptFromFile(const char *path)
 
     DrnToken tok = DrnLex_Next(&lxr);
     scr.start = DrnNode_New(tok, &scr.arena);
-    DrnInserter ins = {.indent = 0, .node = scr.start};
+    DrnInserter ins = {
+        .indent = 0,
+        .node = scr.start,
+    };
+
+    const DrnToken eof_token = {.code = Slice_CStr(StringCopyArena(&scr.arena, "[END OF FILE]"))};
+    ins.eof_node = DrnNode_New(eof_token, &scr.arena);
+    ins.eof_node->type = DNK_END_OF_FILE;
 
     while (DrnLex_HasMore(&lxr))
     {
         tok = DrnLex_Next(&lxr);
+
+        if (tok.code.len == 0)
+            continue;
+
         DrnNode *new_node = DrnNode_New(tok, &scr.arena);
         DrnInserter_Insert(&ins, new_node);
     }
+
+    ins.node->next = ins.eof_node;
 
     return scr;
 }

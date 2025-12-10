@@ -1,6 +1,6 @@
 
 linux: font_16_32.o font_8_16.o
-	cc -c src/hud_main.c -ggdb -odrn_hub_linux.o
+	cc -c src/hud_main.c -ggdb -Wall -odrn_hub_linux.o
 	cc drn_hub_linux.o font_8_16.o font_16_32.o  -lraylib -lm  -odrn_hub_linux
 
 font_8_16.o:
