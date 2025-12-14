@@ -23,11 +23,21 @@ struct DrnNode
     struct DrnToken token;
     struct DrnNode *next, *inner, *parent;
 
+    union
+    {
+        struct {
+
+            Slice execute;
+            bool is_perminant;
+        };
+    };
+
     enum DrnNodeKind
     {
         DNK_UNKNOWN = 0,
         DNK_TASK,
         DNK_CONDITION,
+        DNK_EXECUTE,
         DNK_END_OF_FILE
     } type;
 };
@@ -171,6 +181,11 @@ DrnNode *DrnNode_New(DrnToken tok, Arena *arena)
     {
         n->type = DNK_CONDITION;
     }
+    else if (strncmp("EXECUTE", tok.code.base, 7) == 0)
+    {
+        n->type = DNK_EXECUTE;
+        TODO("Load the Execute data, path, and opt tag for Perminant")
+    }
 
     return n;
 }
@@ -205,7 +220,7 @@ void DrnInserter_Insert(DrnInserter *this, DrnNode *new_node)
     this->node = new_node;
 }
 
-DrnScript LoadDrnScriptFromFile(const char *path)
+DrnScript Drn_LoadScriptFromFile(const char *path)
 {
     if (!FileExists(path))
     {
