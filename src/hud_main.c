@@ -16,6 +16,9 @@
 #define DIRECTIVELIST_IMPL
 #include "directive_list.h"
 
+#define FONTS_IMPL
+#include "fonts.h"
+
 // ---------------------------- Runtime
 
 typedef struct DrnRuntime
@@ -30,6 +33,8 @@ typedef struct DrnRuntime
 void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
 {
     printf("%d->%d\n", rt->now->token.indent, next->token.indent);
+
+    // if we are dropping down lower then any directives, we can cancel them
 }
 
 // Task Node
@@ -70,40 +75,10 @@ void DrnRuntime_AcceptDirective(DrnRuntime *rt)
     rt->now = rt->now->next;
 }
 
-// --------------------------- font stuff
-#define FONTID_DEFAULT (0)
-#define FONTID_HIGHREZ (1)
-Font fonts[2] = {0};
-int g_current_font = FONTID_HIGHREZ;
-const int g_fontsize = 18;
-const int g_fontspacing = 1;
+// --------------------------- UI stuff
 
-#include "fonts.h"
-
-void LoadFonts()
-{
-
-    Image f0 = (Image){.data = FONT_8_16_DATA, .width = FONT_8_16_WIDTH, .height = FONT_8_16_HEIGHT, .format = FONT_8_16_FORMAT, .mipmaps = 1};
-    Image f1 = (Image){.data = FONT_16_32_DATA, .width = FONT_16_32_WIDTH, .height = FONT_16_32_HEIGHT, .format = FONT_16_32_FORMAT, .mipmaps = 1};
-
-    fonts[FONTID_DEFAULT] = LoadFontFromImage(f0, MAGENTA, '!');
-    fonts[FONTID_HIGHREZ] = LoadFontFromImage(f1, MAGENTA, '!');
-
-    if (!IsFontValid(fonts[FONTID_DEFAULT]))
-    {
-        TraceLog(LOG_WARNING, "Failed to load font!");
-        fonts[FONTID_DEFAULT] = GetFontDefault();
-    }
-
-    if (!IsFontValid(fonts[FONTID_HIGHREZ]))
-    {
-        TraceLog(LOG_WARNING, "Failed to load font!");
-        fonts[FONTID_HIGHREZ] = GetFontDefault();
-    }
-}
-
-void Text(const char *txt, Vector2 pos, Color c) { DrawTextEx(fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
-Vector2 TextMeasure(const char *txt) { return MeasureTextEx(fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
+void Text(const char *txt, Vector2 pos, Color c) { DrawTextEx(g_fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
+Vector2 TextMeasure(const char *txt) { return MeasureTextEx(g_fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
 
 bool Button(const char *label, Vector2 pos, Vector2 *opt_size)
 {
@@ -187,18 +162,20 @@ int main(int argc, char *argv[])
             DrnRuntime_Reset(&rt);
 
         Text(SliceToClitTmp(rt.now->token.code), (Vector2){20, 30}, BLACK);
-        Text(TextFormat("%d  %p", rt.now->token.indent, rt.now), (Vector2){20, 30 + g_fontsize + 5}, BLACK);
+        Text(TextFormat("%d  %p", rt.now->token.indent, rt.now), (Vector2){20, 30 + g_fontsize + pad}, BLACK);
 
         DrnNode item = {0};
         int i = 0;
         while (DirectiveList_Itter(&rt.directives, &item, &i))
         {
-            Text(SliceToClitTmp(item.token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + 5}, BLACK);
+            Text(SliceToClitTmp(item.token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + pad}, BLACK);
         }
 
         EndDrawing();
     }
     CloseWindow();
+
+    UnloadFonts();
 
     Drn_FreeScript(&rt.script);
 
