@@ -21,4 +21,4 @@ CONDITION: Dishwasher is 75% full or greater.
 
 ### Notes:
   - DRN is by erentspark todo(link)
-  - this tool is a partal impl of there RFC, written by MX-5050
+  - this tool is a partal impl of erentsparks RFC
