@@ -19,6 +19,59 @@
 #define FONTS_IMPL
 #include "fonts.h"
 
+typedef struct DirectiveList_ItterState
+{
+    DirectiveListItem *itter;
+    char ran_once;
+} DirectiveList_ItterState;
+
+// support removal of items while itterating forwards
+char DirectiveList_Itter_(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state)
+{
+    if (!state->ran_once)
+    {
+        state->itter = &this->start;
+    }
+    else
+    {
+        state->itter = state->itter->next;
+    }
+
+    *out_item = state->itter->item;
+    return *out_item != 0;
+}
+
+void TestDirList()
+{
+    Arena ar = ArenaNew(512);
+
+    DrnNode *n0 = DrnNode_New((DrnToken){.indent = 1, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n1 = DrnNode_New((DrnToken){.indent = 2, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n2 = DrnNode_New((DrnToken){.indent = 3, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n3 = DrnNode_New((DrnToken){.indent = 4, .code = Slice_CStr("TASK: ")}, &ar);
+
+    DirectiveList lst = {0};
+    DirectiveList_Init(&lst, &ar);
+
+    DirectiveList_Add(&lst, n0);
+    DirectiveList_Add(&lst, n1);
+    DirectiveList_Add(&lst, n2);
+    DirectiveList_Add(&lst, n3);
+
+    DirectiveList_ItterState is = {0};
+
+    DrnNode *itter;
+    while (DirectiveList_Itter_(&lst, &itter, &is))
+    {
+        if (itter == n2)
+        {
+            DirectiveList_Remove(&lst, itter);
+        }
+    }
+
+    TODO("It was working here.");
+}
+
 // ---------------------------- Runtime
 
 typedef struct DrnRuntime
@@ -33,8 +86,17 @@ typedef struct DrnRuntime
 void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
 {
     printf("%d->%d\n", rt->now->token.indent, next->token.indent);
-
     // if we are dropping down lower then any directives, we can cancel them
+
+    int s = 0;
+    DrnNode *dir = 0;
+    while (DirectiveList_Itter(&rt->directives, &dir, &s))
+    {
+        if (rt->now->token.indent > dir->token.indent)
+        {
+            DirectiveList_Remove(&rt->directives, dir);
+        }
+    }
 }
 
 // Task Node
@@ -109,6 +171,9 @@ char *SliceToClitTmp(Slice s)
 
 int main(int argc, char *argv[])
 {
+    TestDirList();
+
+    return 0;
     DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/directive.drn")};
     DirectiveList_Init(&rt.directives, &rt.script.arena);
 
@@ -164,18 +229,18 @@ int main(int argc, char *argv[])
         Text(SliceToClitTmp(rt.now->token.code), (Vector2){20, 30}, BLACK);
         Text(TextFormat("%d  %p", rt.now->token.indent, rt.now), (Vector2){20, 30 + g_fontsize + pad}, BLACK);
 
-        DrnNode item = {0};
+        DrnNode *item = 0;
         int i = 0;
         while (DirectiveList_Itter(&rt.directives, &item, &i))
         {
-            Text(SliceToClitTmp(item.token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + pad}, BLACK);
+            Text(SliceToClitTmp(item->token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + pad}, BLACK);
         }
 
         EndDrawing();
     }
-    CloseWindow();
-
     UnloadFonts();
+
+    CloseWindow();
 
     Drn_FreeScript(&rt.script);
 

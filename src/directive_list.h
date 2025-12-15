@@ -23,7 +23,7 @@ void DirectiveList_Add(DirectiveList *this, DrnNode *node);
 void DirectiveList_Remove(DirectiveList *this, DrnNode *node);
 
 // TODO(perf, refactor to have a state object so we dont re-itter each time we call itter)
-char DirectiveList_Itter(DirectiveList *this, DrnNode *out_item, int *state); // while(DirectiveList_Itter()) { ... }
+char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state); // while(DirectiveList_Itter()) { ... }
 void DirectiveList_Clear(DirectiveList *this);
 
 #endif // DIRECTIVELIST_H
@@ -46,7 +46,9 @@ void DirectiveList_Clear(DirectiveList *this)
     }
 }
 
-char DirectiveList_Itter(DirectiveList *this, DrnNode *out_item, int *state)
+
+
+char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state)
 {
     DirectiveListItem *bottem = &this->start;
 
@@ -60,7 +62,7 @@ char DirectiveList_Itter(DirectiveList *this, DrnNode *out_item, int *state)
             if (*state == i)
             {
                 hadone = 1;
-                *out_item = *bottem->item;
+                *out_item = bottem->item;
                 *state = *state + 1;
                 break;
             }
