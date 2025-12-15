@@ -29,7 +29,7 @@ typedef struct DrnRuntime
 // check directives for ones that drop out of scope
 void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
 {
-    
+    printf("%d->%d\n", rt->now->token.indent, next->token.indent);
 }
 
 // Task Node
