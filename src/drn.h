@@ -23,22 +23,13 @@ struct DrnNode
     struct DrnToken token;
     struct DrnNode *next, *inner, *parent;
 
-    union
-    {
-        struct {
-
-            Slice execute;
-            bool is_perminant;
-        };
-    };
-
     enum DrnNodeKind
     {
         DNK_UNKNOWN = 0,
-        DNK_TASK,
-        DNK_CONDITION,
-        DNK_EXECUTE,
-        DNK_END_OF_FILE
+        DNK_TASK,       // something todo, has next
+        DNK_CONDITION,  // true false node, has inner
+        DNK_DIRECTIVE,  // alwase held in memory, must be keept true by agent
+        DNK_END_OF_FILE // end of program
     } type;
 };
 typedef struct DrnNode DrnNode;
@@ -181,10 +172,9 @@ DrnNode *DrnNode_New(DrnToken tok, Arena *arena)
     {
         n->type = DNK_CONDITION;
     }
-    else if (strncmp("EXECUTE", tok.code.base, 7) == 0)
+    else if (strncmp("DIRECTIVE", tok.code.base, 9) == 0)
     {
-        n->type = DNK_EXECUTE;
-        TODO("Load the Execute data, path, and opt tag for Perminant")
+        n->type = DNK_DIRECTIVE;
     }
 
     return n;

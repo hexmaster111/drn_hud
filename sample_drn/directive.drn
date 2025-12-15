@@ -1,0 +1,8 @@
+
+DIRECTIVE: top level
+
+CONDITION: foo
+    DIRECTIVE: foo level
+    TASK: foo
+
+TASK: Done

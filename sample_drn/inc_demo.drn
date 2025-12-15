@@ -1,3 +1,5 @@
 
-EXECUTE: ./dishes.drn
+EXECUTE: ./inc_0.drn
+EXECUTE: ./inc_1.drn
 
+TASK: inc_demo

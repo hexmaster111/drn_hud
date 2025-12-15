@@ -13,30 +13,62 @@
 #define SLICE_IMPL
 #include "slice.h"
 
+#define DIRECTIVELIST_IMPL
+#include "directive_list.h"
+
 // ---------------------------- Runtime
+
 typedef struct DrnRuntime
 {
     DrnScript script;
     DrnNode *now;
+    DirectiveList directives;
 } DrnRuntime;
+
+// call before setting rt->now to next/inner
+// check directives for ones that drop out of scope
+void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
+{
+    
+}
 
 // Task Node
 void DrnRuntime_TaskComplete(DrnRuntime *rt)
 {
-    if (rt->now->next)
-        rt->now = rt->now->next;
+    if (!rt->now->next)
+        return;
+
+    _DrnRuntime_Step(rt, rt->now->next);
+    rt->now = rt->now->next;
 }
 
 // Condition Node
 void DrnRuntime_True(DrnRuntime *rt)
 {
-    if (rt->now->inner)
-        rt->now = rt->now->inner;
+    if (!rt->now->inner)
+        return;
+
+    _DrnRuntime_Step(rt, rt->now->inner);
+    rt->now = rt->now->inner;
 }
 
 void DrnRuntime_False(DrnRuntime *rt) { DrnRuntime_TaskComplete(rt); }
 
-void DrnRuntime_Reset(DrnRuntime *rt) { rt->now = rt->script.start; }
+void DrnRuntime_Reset(DrnRuntime *rt)
+{
+    rt->now = rt->script.start;
+    DirectiveList_Clear(&rt->directives);
+}
+
+void DrnRuntime_AcceptDirective(DrnRuntime *rt)
+{
+    if (!rt->now->next)
+        return;
+
+    DirectiveList_Add(&rt->directives, rt->now);
+    _DrnRuntime_Step(rt, rt->now->next);
+    rt->now = rt->now->next;
+}
 
 // --------------------------- font stuff
 #define FONTID_DEFAULT (0)
@@ -102,13 +134,15 @@ char *SliceToClitTmp(Slice s)
 
 int main(int argc, char *argv[])
 {
-    DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/complex.drn")};
+    DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/directive.drn")};
+    DirectiveList_Init(&rt.directives, &rt.script.arena);
 
     rt.now = rt.script.start;
     if (!rt.script.start)
     {
         return 1;
     }
+
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
     SetTargetFPS(60);
     InitWindow(512, 160, "DRN");
@@ -137,6 +171,12 @@ int main(int argc, char *argv[])
                 DrnRuntime_False(&rt);
             pos.x += sz.x + pad;
         }
+        else if (rt.now->type == DNK_DIRECTIVE)
+        {
+            if (Button("Acknowledge", pos, &sz))
+                DrnRuntime_AcceptDirective(&rt);
+            pos.x += sz.x + pad;
+        }
 
         int window_height = GetScreenHeight();
         int window_width = GetScreenWidth();
@@ -147,7 +187,15 @@ int main(int argc, char *argv[])
             DrnRuntime_Reset(&rt);
 
         Text(SliceToClitTmp(rt.now->token.code), (Vector2){20, 30}, BLACK);
-        Text(TextFormat("%p", rt.now), (Vector2){20, 30 + g_fontsize + 5}, BLACK);
+        Text(TextFormat("%d  %p", rt.now->token.indent, rt.now), (Vector2){20, 30 + g_fontsize + 5}, BLACK);
+
+        DrnNode item = {0};
+        int i = 0;
+        while (DirectiveList_Itter(&rt.directives, &item, &i))
+        {
+            Text(SliceToClitTmp(item.token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + 5}, BLACK);
+        }
+
         EndDrawing();
     }
     CloseWindow();
