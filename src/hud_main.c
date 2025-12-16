@@ -23,14 +23,14 @@
 
 typedef struct DrnRuntime
 {
-    DrnScript script;
-    DrnNode *now;
-    DirectiveList directives;
+    DrnScript script;         // the script being ran, owns the arena and node memory
+    DrnNode *now;             // ptr to current node being executed
+    DirectiveList directives; // list of pointers to nodes in the script that should be rendered to drone
 } DrnRuntime;
 
 // call before setting rt->now to next/inner
 // check directives for ones that drop out of scope
-void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
+void _DrnRuntime_CheckDirectiveScope(DrnRuntime *rt, DrnNode *next)
 {
     DrnNode *directives = 0;
     DirectiveList_ItterState s = {0};
@@ -43,41 +43,44 @@ void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
     }
 }
 
-// Task Node
+// advanced from a task node
 void DrnRuntime_TaskComplete(DrnRuntime *rt)
 {
     if (!rt->now->next)
         return;
 
-    _DrnRuntime_Step(rt, rt->now->next);
+    _DrnRuntime_CheckDirectiveScope(rt, rt->now->next);
     rt->now = rt->now->next;
 }
 
-// Condition Node
+// enter the body of a condition node 
 void DrnRuntime_True(DrnRuntime *rt)
 {
     if (!rt->now->inner)
         return;
 
-    _DrnRuntime_Step(rt, rt->now->inner);
+    _DrnRuntime_CheckDirectiveScope(rt, rt->now->inner);
     rt->now = rt->now->inner;
 }
 
+// enter the next node of a false condtion node
 void DrnRuntime_False(DrnRuntime *rt) { DrnRuntime_TaskComplete(rt); }
 
+// reset the runtime to the top of the starting file
 void DrnRuntime_Reset(DrnRuntime *rt)
 {
     rt->now = rt->script.start;
     DirectiveList_Clear(&rt->directives);
 }
 
+// accept directive into runtime, adding to directive list
 void DrnRuntime_AcceptDirective(DrnRuntime *rt)
 {
     if (!rt->now->next)
         return;
 
     DirectiveList_Add(&rt->directives, rt->now);
-    _DrnRuntime_Step(rt, rt->now->next);
+    _DrnRuntime_CheckDirectiveScope(rt, rt->now->next);
     rt->now = rt->now->next;
 }
 
@@ -195,6 +198,9 @@ Vector2 MeasureTextExHG(Font font, Slice text, float fontSize, float spacing)
 void Text(Slice txt, Vector2 pos, Color c) { DrawTextExHG(g_fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
 Vector2 TextMeasure(Slice txt) { return MeasureTextExHG(g_fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
 
+void TextCstr(const char *txt, Vector2 pos, Color c) { DrawTextEx(g_fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
+Vector2 TextMeasureCstr(const char *txt) { return MeasureTextEx(g_fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
+
 bool Button(Slice label, Vector2 pos, Vector2 *opt_size)
 {
     Vector2 sz = TextMeasure(label);
@@ -209,6 +215,9 @@ bool Button(Slice label, Vector2 pos, Vector2 *opt_size)
 
 int main(int argc, char *argv[])
 {
+
+    DirectiveList_Test_Remove();
+    return 0;
 
     DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/directive.drn")};
     DirectiveList_Init(&rt.directives, &rt.script.arena);

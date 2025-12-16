@@ -17,12 +17,10 @@ typedef struct DirectiveList
     DirectiveListItem start;
 } DirectiveList;
 
-
 typedef struct DirectiveList_ItterState
 {
     DirectiveListItem *itter;
     char ran_once;
-    int i;
 } DirectiveList_ItterState;
 
 void DirectiveList_DebugPrint(DirectiveList *this, FILE *fp);
@@ -30,8 +28,6 @@ void DirectiveList_Init(DirectiveList *this, Arena *arena);
 void DirectiveList_Add(DirectiveList *this, DrnNode *node);
 void DirectiveList_Remove(DirectiveList *this, DrnNode *node);
 
-// TODO(perf, refactor to have a state object so we dont re-itter each time we call itter)
-// char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state); // while(DirectiveList_Itter()) { ... }
 char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state);
 
 void DirectiveList_Clear(DirectiveList *this);
@@ -41,17 +37,17 @@ void DirectiveList_Clear(DirectiveList *this);
 #ifdef DIRECTIVELIST_IMPL
 #undef DIRECTIVELIST_IMPL
 
-
-
 // support removal of items while itterating forwards
 char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state)
 {
+    TODO("BUG-- this terminates itteration early on encountering the first null item, even if the next chain has an item");
+
     if (!state->ran_once)
     {
         state->itter = &this->start;
         state->ran_once = 1;
     }
-    else if (state->itter->next == 0) 
+    else if (state->itter->next == 0)
     {
         *out_item = 0;
         return 0;
@@ -63,7 +59,6 @@ char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_
     *out_item = state->itter->item;
     return *out_item != 0;
 }
-
 
 void DirectiveList_Clear(DirectiveList *this)
 {
@@ -79,8 +74,6 @@ void DirectiveList_Clear(DirectiveList *this)
         bottem = bottem->next;
     }
 }
-
-
 
 void DirectiveList_DebugPrint(DirectiveList *this, FILE *fp)
 {
@@ -187,6 +180,13 @@ void DirectiveList_Test_Remove()
 
     printf("-------------------\n");
     DirectiveList_DebugPrint(&lst, stdout);
+    printf("-------------------\n");
+
+    memset(&is, 0, sizeof(is));
+    while (DirectiveList_Itter(&lst, &itter, &is))
+    {
+        printf("%d:%p\n", itter->token.indent, itter);
+    }
 }
 
 void DirectiveList_Test()
