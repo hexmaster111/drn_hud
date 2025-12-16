@@ -3,6 +3,8 @@ DIRECTIVE: top level
 
 CONDITION: foo
     DIRECTIVE: foo level
-    TASK: foo
+    TASK: foo1
+    TASK: foo2
 
+TASK: some
 TASK: Done

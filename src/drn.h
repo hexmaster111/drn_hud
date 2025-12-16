@@ -219,7 +219,7 @@ DrnScript Drn_LoadScriptFromFile(const char *path)
     }
 
     DrnScript scr = {0};
-    scr.arena = ArenaNew(1 << 16);
+    scr.arena = ArenaNew(1024);
     size_t filetextlen = 0;
     char *filetext = LoadFileTextArena(&scr.arena, path, &filetextlen);
 

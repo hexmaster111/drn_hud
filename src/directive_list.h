@@ -17,19 +17,53 @@ typedef struct DirectiveList
     DirectiveListItem start;
 } DirectiveList;
 
+
+typedef struct DirectiveList_ItterState
+{
+    DirectiveListItem *itter;
+    char ran_once;
+    int i;
+} DirectiveList_ItterState;
+
 void DirectiveList_DebugPrint(DirectiveList *this, FILE *fp);
 void DirectiveList_Init(DirectiveList *this, Arena *arena);
 void DirectiveList_Add(DirectiveList *this, DrnNode *node);
 void DirectiveList_Remove(DirectiveList *this, DrnNode *node);
 
 // TODO(perf, refactor to have a state object so we dont re-itter each time we call itter)
-char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state); // while(DirectiveList_Itter()) { ... }
+// char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state); // while(DirectiveList_Itter()) { ... }
+char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state);
+
 void DirectiveList_Clear(DirectiveList *this);
 
 #endif // DIRECTIVELIST_H
 
 #ifdef DIRECTIVELIST_IMPL
 #undef DIRECTIVELIST_IMPL
+
+
+
+// support removal of items while itterating forwards
+char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state)
+{
+    if (!state->ran_once)
+    {
+        state->itter = &this->start;
+        state->ran_once = 1;
+    }
+    else if (state->itter->next == 0) 
+    {
+        *out_item = 0;
+        return 0;
+    }
+    else
+    {
+        state->itter = state->itter->next;
+    }
+    *out_item = state->itter->item;
+    return *out_item != 0;
+}
+
 
 void DirectiveList_Clear(DirectiveList *this)
 {
@@ -47,36 +81,6 @@ void DirectiveList_Clear(DirectiveList *this)
 }
 
 
-
-char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, int *state)
-{
-    DirectiveListItem *bottem = &this->start;
-
-    int i = 0;
-    char hadone = 0;
-
-    for (;;)
-    {
-        if (bottem->item)
-        {
-            if (*state == i)
-            {
-                hadone = 1;
-                *out_item = bottem->item;
-                *state = *state + 1;
-                break;
-            }
-            i++;
-        }
-
-        if (!bottem->next)
-            break;
-
-        bottem = bottem->next;
-    }
-
-    return hadone;
-}
 
 void DirectiveList_DebugPrint(DirectiveList *this, FILE *fp)
 {
@@ -148,6 +152,41 @@ void DirectiveList_Remove(DirectiveList *this, DrnNode *node)
 
         bottem = bottem->next;
     }
+}
+
+void DirectiveList_Test_Remove()
+{
+    Arena ar = ArenaNew(512);
+
+    DrnNode *n0 = DrnNode_New((DrnToken){.indent = 1, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n1 = DrnNode_New((DrnToken){.indent = 2, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n2 = DrnNode_New((DrnToken){.indent = 3, .code = Slice_CStr("TASK: ")}, &ar);
+    DrnNode *n3 = DrnNode_New((DrnToken){.indent = 4, .code = Slice_CStr("TASK: ")}, &ar);
+
+    DirectiveList lst = {0};
+    DirectiveList_Init(&lst, &ar);
+
+    DirectiveList_Add(&lst, n0);
+    DirectiveList_Add(&lst, n1);
+    DirectiveList_Add(&lst, n2);
+    DirectiveList_Add(&lst, n3);
+
+    DirectiveList_DebugPrint(&lst, stdout);
+
+    DirectiveList_ItterState is = {0};
+
+    DrnNode *itter;
+    while (DirectiveList_Itter(&lst, &itter, &is))
+    {
+        if (itter == n2)
+        {
+            DirectiveList_Remove(&lst, itter);
+            printf("Removed n2\n");
+        }
+    }
+
+    printf("-------------------\n");
+    DirectiveList_DebugPrint(&lst, stdout);
 }
 
 void DirectiveList_Test()

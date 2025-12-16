@@ -8,7 +8,7 @@ typedef struct Slice
 } Slice;
 
 #define SLICE_CLIT(CLIT) \
-    (Slice) { .base = (CLIT), .len = sizeof(CLIT) }
+    (Slice){.base = (CLIT), .len = sizeof(CLIT) - 1}
 
 Slice Slice_CStr(char *clit);
 

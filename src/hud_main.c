@@ -19,59 +19,6 @@
 #define FONTS_IMPL
 #include "fonts.h"
 
-typedef struct DirectiveList_ItterState
-{
-    DirectiveListItem *itter;
-    char ran_once;
-} DirectiveList_ItterState;
-
-// support removal of items while itterating forwards
-char DirectiveList_Itter_(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state)
-{
-    if (!state->ran_once)
-    {
-        state->itter = &this->start;
-    }
-    else
-    {
-        state->itter = state->itter->next;
-    }
-
-    *out_item = state->itter->item;
-    return *out_item != 0;
-}
-
-void TestDirList()
-{
-    Arena ar = ArenaNew(512);
-
-    DrnNode *n0 = DrnNode_New((DrnToken){.indent = 1, .code = Slice_CStr("TASK: ")}, &ar);
-    DrnNode *n1 = DrnNode_New((DrnToken){.indent = 2, .code = Slice_CStr("TASK: ")}, &ar);
-    DrnNode *n2 = DrnNode_New((DrnToken){.indent = 3, .code = Slice_CStr("TASK: ")}, &ar);
-    DrnNode *n3 = DrnNode_New((DrnToken){.indent = 4, .code = Slice_CStr("TASK: ")}, &ar);
-
-    DirectiveList lst = {0};
-    DirectiveList_Init(&lst, &ar);
-
-    DirectiveList_Add(&lst, n0);
-    DirectiveList_Add(&lst, n1);
-    DirectiveList_Add(&lst, n2);
-    DirectiveList_Add(&lst, n3);
-
-    DirectiveList_ItterState is = {0};
-
-    DrnNode *itter;
-    while (DirectiveList_Itter_(&lst, &itter, &is))
-    {
-        if (itter == n2)
-        {
-            DirectiveList_Remove(&lst, itter);
-        }
-    }
-
-    TODO("It was working here.");
-}
-
 // ---------------------------- Runtime
 
 typedef struct DrnRuntime
@@ -85,16 +32,13 @@ typedef struct DrnRuntime
 // check directives for ones that drop out of scope
 void _DrnRuntime_Step(DrnRuntime *rt, DrnNode *next)
 {
-    printf("%d->%d\n", rt->now->token.indent, next->token.indent);
-    // if we are dropping down lower then any directives, we can cancel them
-
-    int s = 0;
-    DrnNode *dir = 0;
-    while (DirectiveList_Itter(&rt->directives, &dir, &s))
+    DrnNode *directives = 0;
+    DirectiveList_ItterState s = {0};
+    while (DirectiveList_Itter(&rt->directives, &directives, &s))
     {
-        if (rt->now->token.indent > dir->token.indent)
+        if (next->token.indent < directives->token.indent)
         {
-            DirectiveList_Remove(&rt->directives, dir);
+            DirectiveList_Remove(&rt->directives, directives);
         }
     }
 }
@@ -139,10 +83,117 @@ void DrnRuntime_AcceptDirective(DrnRuntime *rt)
 
 // --------------------------- UI stuff
 
-void Text(const char *txt, Vector2 pos, Color c) { DrawTextEx(g_fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
-Vector2 TextMeasure(const char *txt) { return MeasureTextEx(g_fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
+const int textLineSpacing = 1;
 
-bool Button(const char *label, Vector2 pos, Vector2 *opt_size)
+// Draw text using Font
+// NOTE: chars spacing is NOT proportional to fontSize
+void DrawTextExHG(Font font, Slice text, Vector2 position, float fontSize, float spacing, Color tint)
+{
+    if (font.texture.id == 0)
+        font = GetFontDefault(); // Security check in case of not valid font
+
+    int size = text.len; // Total size in bytes of the text, scanned by codepoints in loop
+
+    float textOffsetY = 0;    // Offset between lines (on linebreak '\n')
+    float textOffsetX = 0.0f; // Offset X to next character to draw
+
+    float scaleFactor = fontSize / font.baseSize; // Character quad scaling factor
+
+    for (int i = 0; i < size;)
+    {
+        // Get next codepoint from byte string and glyph index in font
+        int codepointByteCount = 0;
+        int codepoint = GetCodepointNext(&text.base[i], &codepointByteCount);
+        int index = GetGlyphIndex(font, codepoint);
+
+        if (codepoint == '\n')
+        {
+            // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
+            textOffsetY += (fontSize + textLineSpacing);
+            textOffsetX = 0.0f;
+        }
+        else
+        {
+            if ((codepoint != ' ') && (codepoint != '\t'))
+            {
+                DrawTextCodepoint(font, codepoint, (Vector2){position.x + textOffsetX, position.y + textOffsetY}, fontSize, tint);
+            }
+
+            if (font.glyphs[index].advanceX == 0)
+                textOffsetX += ((float)font.recs[index].width * scaleFactor + spacing);
+            else
+                textOffsetX += ((float)font.glyphs[index].advanceX * scaleFactor + spacing);
+        }
+
+        i += codepointByteCount; // Move text bytes counter to next codepoint
+    }
+}
+
+Vector2 MeasureTextExHG(Font font, Slice text, float fontSize, float spacing)
+{
+    Vector2 textSize = {0};
+
+    if ((font.texture.id == 0) || (text.base == NULL) || (text.base[0] == '\0'))
+        return textSize; // Security check
+
+    int size = text.len;     // Get size in bytes of text
+    int tempByteCounter = 0; // Used to count longer text line num chars
+    int byteCounter = 0;
+
+    float textWidth = 0.0f;
+    float tempTextWidth = 0.0f; // Used to count longer text line width
+
+    float textHeight = fontSize;
+    float scaleFactor = fontSize / (float)font.baseSize;
+
+    int letter = 0; // Current character
+    int index = 0;  // Index position in sprite font
+
+    for (int i = 0; i < size;)
+    {
+        byteCounter++;
+
+        int codepointByteCount = 0;
+        letter = GetCodepointNext(&text.base[i], &codepointByteCount);
+        index = GetGlyphIndex(font, letter);
+
+        i += codepointByteCount;
+
+        if (letter != '\n')
+        {
+            if (font.glyphs[index].advanceX > 0)
+                textWidth += font.glyphs[index].advanceX;
+            else
+                textWidth += (font.recs[index].width + font.glyphs[index].offsetX);
+        }
+        else
+        {
+            if (tempTextWidth < textWidth)
+                tempTextWidth = textWidth;
+            byteCounter = 0;
+            textWidth = 0;
+
+            // NOTE: Line spacing is a global variable, use SetTextLineSpacing() to setup
+            textHeight += (fontSize + textLineSpacing);
+        }
+
+        if (tempByteCounter < byteCounter)
+            tempByteCounter = byteCounter;
+    }
+
+    if (tempTextWidth < textWidth)
+        tempTextWidth = textWidth;
+
+    textSize.x = tempTextWidth * scaleFactor + (float)((tempByteCounter - 1) * spacing);
+    textSize.y = textHeight;
+
+    return textSize;
+}
+
+void Text(Slice txt, Vector2 pos, Color c) { DrawTextExHG(g_fonts[g_current_font], txt, pos, g_fontsize, g_fontspacing, c); }
+Vector2 TextMeasure(Slice txt) { return MeasureTextExHG(g_fonts[g_current_font], txt, g_fontsize, g_fontspacing); }
+
+bool Button(Slice label, Vector2 pos, Vector2 *opt_size)
 {
     Vector2 sz = TextMeasure(label);
     if (opt_size)
@@ -171,9 +222,7 @@ char *SliceToClitTmp(Slice s)
 
 int main(int argc, char *argv[])
 {
-    TestDirList();
 
-    return 0;
     DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/directive.drn")};
     DirectiveList_Init(&rt.directives, &rt.script.arena);
 
@@ -197,43 +246,44 @@ int main(int argc, char *argv[])
 
         if (rt.now->type == DNK_TASK)
         {
-            if (Button("Task Complete", pos, &sz))
+            if (Button(SLICE_CLIT("Task Complete"), pos, &sz))
                 DrnRuntime_TaskComplete(&rt);
             pos.x += sz.x + pad;
         }
         else if (rt.now->type == DNK_CONDITION)
         {
-            if (Button("True", pos, &sz))
+            if (Button(SLICE_CLIT("True"), pos, &sz))
                 DrnRuntime_True(&rt);
             pos.x += sz.x + pad;
 
-            if (Button("False", pos, &sz))
+            if (Button(SLICE_CLIT("False"), pos, &sz))
                 DrnRuntime_False(&rt);
             pos.x += sz.x + pad;
         }
         else if (rt.now->type == DNK_DIRECTIVE)
         {
-            if (Button("Acknowledge", pos, &sz))
+            if (Button(SLICE_CLIT("Acknowledge"), pos, &sz))
                 DrnRuntime_AcceptDirective(&rt);
             pos.x += sz.x + pad;
         }
 
         int window_height = GetScreenHeight();
         int window_width = GetScreenWidth();
-        Vector2 reset_size = TextMeasure("Reset");
+        Vector2 reset_size = TextMeasure(SLICE_CLIT("Reset"));
         reset_size.x = window_width - reset_size.x;
         reset_size.y = window_height - reset_size.y;
-        if (Button("Reset", reset_size, 0))
+        if (Button(SLICE_CLIT("Reset"), reset_size, 0))
             DrnRuntime_Reset(&rt);
 
-        Text(SliceToClitTmp(rt.now->token.code), (Vector2){20, 30}, BLACK);
-        Text(TextFormat("%d  %p", rt.now->token.indent, rt.now), (Vector2){20, 30 + g_fontsize + pad}, BLACK);
+        Text(rt.now->token.code, (Vector2){20, 30}, BLACK);
 
-        DrnNode *item = 0;
+        DrnNode *directive = 0;
         int i = 0;
-        while (DirectiveList_Itter(&rt.directives, &item, &i))
+        DirectiveList_ItterState itterstate = {0};
+        while (DirectiveList_Itter(&rt.directives, &directive, &itterstate))
         {
-            Text(SliceToClitTmp(item->token.code), (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + pad}, BLACK);
+            i += 1;
+            Text(directive->token.code, (Vector2){20, 30 + g_fontsize + (i * g_fontsize) + pad}, BLACK);
         }
 
         EndDrawing();
