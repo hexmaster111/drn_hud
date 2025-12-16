@@ -87,6 +87,7 @@ const int textLineSpacing = 1;
 
 // Draw text using Font
 // NOTE: chars spacing is NOT proportional to fontSize
+//lifed from raylib, modfied to work with slices
 void DrawTextExHG(Font font, Slice text, Vector2 position, float fontSize, float spacing, Color tint)
 {
     if (font.texture.id == 0)
@@ -129,6 +130,7 @@ void DrawTextExHG(Font font, Slice text, Vector2 position, float fontSize, float
     }
 }
 
+//lifed from raylib, modfied to work with slices
 Vector2 MeasureTextExHG(Font font, Slice text, float fontSize, float spacing)
 {
     Vector2 textSize = {0};
