@@ -87,7 +87,7 @@ const int textLineSpacing = 1;
 
 // Draw text using Font
 // NOTE: chars spacing is NOT proportional to fontSize
-//lifed from raylib, modfied to work with slices
+// lifed from raylib, modfied to work with slices
 void DrawTextExHG(Font font, Slice text, Vector2 position, float fontSize, float spacing, Color tint)
 {
     if (font.texture.id == 0)
@@ -130,7 +130,7 @@ void DrawTextExHG(Font font, Slice text, Vector2 position, float fontSize, float
     }
 }
 
-//lifed from raylib, modfied to work with slices
+// lifed from raylib, modfied to work with slices
 Vector2 MeasureTextExHG(Font font, Slice text, float fontSize, float spacing)
 {
     Vector2 textSize = {0};
@@ -205,21 +205,6 @@ bool Button(Slice label, Vector2 pos, Vector2 *opt_size)
     Text(label, pos, ORANGE);
     bool over = CheckCollisionPointRec(GetMousePosition(), (Rectangle){.x = pos.x, .y = pos.y, .width = sz.x, .height = sz.y});
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
-}
-
-// returns staticly allocated string
-char *SliceToClitTmp(Slice s)
-{
-    static char *memory = 0;
-    static int memory_len = 0;
-    if (s.len + 1 > memory_len)
-    {
-        memory = realloc(memory, s.len + 1);
-        memory_len = s.len + 1;
-    }
-    memset(memory, 0, memory_len);
-    strncpy(memory, s.base, s.len);
-    return memory;
 }
 
 int main(int argc, char *argv[])
