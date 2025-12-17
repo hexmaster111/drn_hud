@@ -127,7 +127,7 @@ int DrnLex_HasMore(DrnLexer *lxr)
 
 DrnToken DrnLex_Next(DrnLexer *s)
 {
-SKIP:
+SKIP:;
     int indent;
 
     Slice line = DrnLex_ReadToNewline(s);

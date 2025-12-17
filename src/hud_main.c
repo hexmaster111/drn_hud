@@ -215,10 +215,6 @@ bool Button(Slice label, Vector2 pos, Vector2 *opt_size)
 
 int main(int argc, char *argv[])
 {
-
-    DirectiveList_Test_Remove();
-    return 0;
-
     DrnRuntime rt = {.script = Drn_LoadScriptFromFile("sample_drn/directive.drn")};
     DirectiveList_Init(&rt.directives, &rt.script.arena);
 

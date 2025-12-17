@@ -1,8 +1,7 @@
-
-DIRECTIVE: top level
+DIRECTIVE.test: top level
 
 CONDITION: foo
-    DIRECTIVE: foo level
+    DIRECTIVE.foo: some
     TASK: foo1
     TASK: foo2
 

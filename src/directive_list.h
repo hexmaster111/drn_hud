@@ -40,7 +40,7 @@ void DirectiveList_Clear(DirectiveList *this);
 // support removal of items while itterating forwards
 char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_ItterState *state)
 {
-    TODO("BUG-- this terminates itteration early on encountering the first null item, even if the next chain has an item");
+NEXT:;
 
     if (!state->ran_once)
     {
@@ -56,7 +56,12 @@ char DirectiveList_Itter(DirectiveList *this, DrnNode **out_item, DirectiveList_
     {
         state->itter = state->itter->next;
     }
+
+    if (!state->itter->item)
+        goto NEXT;
+
     *out_item = state->itter->item;
+
     return *out_item != 0;
 }
 
